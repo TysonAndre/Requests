@@ -1,16 +1,20 @@
 language: php
+
+dist: trusty
+
+# Start the faster jobs first.
 matrix:
   fast_finish: true
   include:
-    - php: 5.2
-    - php: 5.3
-    - php: 5.4
-    - php: 5.5
+    - php: hhvm
+    - php: 7.1
+    - php: 7.0
     - php: 5.6
       env: TEST_COVERAGE=1
-    - php: 7.0
-    - php: 7.1
-    - php: hhvm
+    - php: 5.5
+    - php: 5.4
+    - php: 5.3
+    - php: 5.2
 
 # Use new container infrastructure
 sudo: false
@@ -21,9 +25,10 @@ cache:
     - $HOME/.composer/cache
     - vendor
 
+# Because of `dist: trusty`, 5.5.38 isn't installed in phpenv by default.
 install:
  # Setup the test server
- - phpenv local 5.5
+ - if php -r 'if(PHP_VERSION_ID >= 50500) {exit(1);}' ; then phpenv install 5.5.38; phpenv local 5.5.38; fi
  - composer install --dev --no-interaction
  - TESTPHPBIN=$(phpenv which php)
  - phpenv local --unset
@@ -47,8 +52,9 @@ before_script:
  # Ensure the HTTPS test instance on Heroku is spun up
  - curl -s -I http://requests-php-tests.herokuapp.com/ > /dev/null
 
+# Run a version of phpunit < 6. This is needed for hhvm, and supporting PHPUnit 6 would add recurring work.
 script:
- - phpunit --coverage-clover clover.xml
+ - if [ -x vendor/bin/phpunit ]; then echo "Aliasing phpunit to the locally installed version"; alias phpunit=vendor/bin/phpunit; fi; phpunit --version; phpunit --coverage-clover clover.xml
 
 after_script:
  - utils/proxy/stop.sh
